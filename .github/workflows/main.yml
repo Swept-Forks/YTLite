@@ -113,7 +113,9 @@ jobs:
 
       - name: Inject tweaks into IPA
         run: |
-          tweaks="ytplus.deb OpenYoutubeSafariExtension.appex"
+          # ytplus.deb is picked up by the glob below — do not list it explicitly
+          # or it will be injected twice (duplicate LC_LOAD_DYLIB → double init crash)
+          tweaks="OpenYoutubeSafariExtension.appex"
           for f in *.deb; do
             [ -f "$f" ] && tweaks="$tweaks $f"
           done
