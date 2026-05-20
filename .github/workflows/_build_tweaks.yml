@@ -8,11 +8,6 @@ on:
         required: true
         default: false
 
-      enable_ytuhd:
-        type: boolean
-        required: true
-        default: false
-
       enable_yq:
         type: boolean
         required: true
@@ -57,8 +52,8 @@ jobs:
           echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
           echo "THEOS=${{ github.workspace }}/theos" >> $GITHUB_ENV
 
+      # Theos is always needed — YTUHD and FLEXHelperForYT are always built.
       - name: Cache Theos
-        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_ytabc || inputs.enable_demc }}
         id: theos
         uses: actions/cache@v5
         env:
@@ -69,7 +64,7 @@ jobs:
           restore-keys: ${{ env.cache-name }}
 
       - name: Setup Theos
-        if: ${{ (inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_ytabc || inputs.enable_demc) && steps.theos.outputs.cache-hit != 'true' }}
+        if: steps.theos.outputs.cache-hit != 'true'
         uses: actions/checkout@v6
         with:
           repository: theos/theos
@@ -78,7 +73,7 @@ jobs:
           submodules: recursive
 
       - name: Download iOS SDK
-        if: ${{ (inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_ytabc || inputs.enable_demc) && steps.theos.outputs.cache-hit != 'true' }}
+        if: steps.theos.outputs.cache-hit != 'true'
         run: |
           git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/theos/sdks/
           cd sdks
@@ -102,8 +97,8 @@ jobs:
             exit 1
           fi
 
+      # YouTubeHeader is always needed (YTUHD + FLEXHelperForYT both import it).
       - name: Clone YouTubeHeader
-        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_ytabc || inputs.enable_demc }}
         run: |
           if [ -d "$THEOS/include/YouTubeHeader" ]; then
             cd $THEOS/include/YouTubeHeader && git pull
@@ -115,8 +110,8 @@ jobs:
             cp -r "$THEOS/include/YouTubeHeader" "$THEOS/include/YTHeaders"
           fi
 
+      # PSHeader is always needed (FLEXHelperForYT/Settings.x imports PSHeader/Misc.h).
       - name: Clone PSHeader
-        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_ytabc || inputs.enable_demc }}
         run: |
           if [ -d "$THEOS/include/PSHeader" ]; then
             cd $THEOS/include/PSHeader && git pull
@@ -128,8 +123,8 @@ jobs:
         if: ${{ inputs.enable_youpip }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouPiP.git
 
+      # YTUHD is always included — it contains FixPlayback.x, the core playback fix.
       - name: Clone YTUHD
-        if: ${{ inputs.enable_ytuhd }}
         run: git clone --quiet --depth=1 https://github.com/SweptWasTaken/YTUHD.git
 
       - name: Clone Return-YouTube-Dislikes
@@ -141,7 +136,7 @@ jobs:
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YTABConfig.git
 
       - name: Clone YouGroupSettings
-        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_demc }}
+        if: ${{ inputs.enable_youpip || inputs.enable_yq || inputs.enable_ryd || inputs.enable_demc }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouGroupSettings.git
 
       - name: Clone YouQuality
@@ -149,12 +144,16 @@ jobs:
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YouQuality.git
 
       - name: Clone YTVideoOverlay
-        if: ${{ inputs.enable_yq || inputs.enable_youpip || inputs.enable_ytuhd }}
+        if: ${{ inputs.enable_yq || inputs.enable_youpip }}
         run: git clone --quiet --depth=1 https://github.com/PoomSmart/YTVideoOverlay.git
 
       - name: Clone DontEatMyContent
         if: ${{ inputs.enable_demc }}
         run: git clone --quiet --depth=1 https://github.com/therealFoxster/DontEatMyContent.git
+
+      # FLEXHelperForYT is always included — shake-to-activate FLEX for runtime inspection.
+      - name: Clone FLEXHelperForYT
+        run: git clone --quiet --depth=1 https://github.com/SweptWasTaken/FLEXHelperForYT.git
 
       - name: Build YouPiP
         if: ${{ inputs.enable_youpip }}
@@ -163,7 +162,6 @@ jobs:
           mv packages/*.deb ../youpip.deb
 
       - name: Build YTUHD
-        if: ${{ inputs.enable_ytuhd }}
         run: |
           cd YTUHD && make clean package DEBUG=0 FINALPACKAGE=1
           mv packages/*.deb ../ytuhd.deb
@@ -181,7 +179,7 @@ jobs:
           mv packages/*.deb ../ytabc.deb
 
       - name: Build YouGroupSettings
-        if: ${{ inputs.enable_youpip || inputs.enable_ytuhd || inputs.enable_yq || inputs.enable_ryd || inputs.enable_demc }}
+        if: ${{ inputs.enable_youpip || inputs.enable_yq || inputs.enable_ryd || inputs.enable_demc }}
         run: |
           cd YouGroupSettings && make clean package DEBUG=0 FINALPACKAGE=1
           mv packages/*.deb ../ygs.deb
@@ -193,7 +191,7 @@ jobs:
           mv packages/*.deb ../yq.deb
 
       - name: Build YTVideoOverlay
-        if: ${{ inputs.enable_yq || inputs.enable_youpip || inputs.enable_ytuhd }}
+        if: ${{ inputs.enable_yq || inputs.enable_youpip }}
         run: |
           cd YTVideoOverlay && make clean package DEBUG=0 FINALPACKAGE=1
           mv packages/*.deb ../ytvo.deb
@@ -203,6 +201,32 @@ jobs:
         run: |
           cd DontEatMyContent && make clean package DEBUG=0 FINALPACKAGE=1
           mv packages/*.deb ../demc.deb
+
+      - name: Build FLEXHelperForYT
+        run: |
+          cd FLEXHelperForYT && make clean package DEBUG=0 FINALPACKAGE=1
+          mv packages/*.deb ../flexhelper.deb
+
+      # Build FLEX.framework from source and include in artifact.
+      # The package job embeds it without a load command so dlopen() in
+      # FLEXHelperForYT can load it lazily (avoids dyld crash at startup).
+      - name: Build FLEX Framework
+        run: |
+          git clone --quiet --depth=1 https://github.com/FLEXTool/FLEX.git
+          xcodebuild \
+            -project FLEX/FLEX.xcodeproj \
+            -scheme FLEX \
+            -configuration Release \
+            -sdk iphoneos \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            BUILD_DIR=$(pwd)/flex_build \
+            clean build 2>&1 | grep -E "(error:|Build succeeded|Build FAILED)" || true
+          find flex_build -type d -name "FLEX.framework" | head -1 | xargs -I{} mv {} ${{ github.workspace }}/FLEX.framework
+          rm -rf FLEX flex_build
 
       - name: Clone Open in YouTube (Safari extension)
         run: |
@@ -219,5 +243,6 @@ jobs:
           path: |
             *.deb
             *.appex
+            FLEX.framework
           if-no-files-found: ignore
           retention-days: 1

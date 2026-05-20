@@ -9,12 +9,6 @@ on:
         required: true
         default: false
 
-      enable_ytuhd:
-        description: "Integrate YTUHD"
-        type: boolean
-        required: true
-        default: false
-
       enable_yq:
         description: "Integrate YouQuality"
         type: boolean
@@ -78,7 +72,6 @@ jobs:
     uses: ./.github/workflows/_build_tweaks.yml
     with:
       enable_youpip: ${{ inputs.enable_youpip }}
-      enable_ytuhd: ${{ inputs.enable_ytuhd }}
       enable_yq: ${{ inputs.enable_yq }}
       enable_ryd: ${{ inputs.enable_ryd }}
       enable_ytabc: ${{ inputs.enable_ytabc }}
@@ -102,7 +95,7 @@ jobs:
       - name: Hide sensitive inputs
         uses: levibostian/action-hide-sensitive-inputs@v1
         with:
-          exclude_inputs: bundle_id,display_name,enable_demc,enable_ryd,enable_ytabc,enable_youpip,enable_yq,enable_ytuhd,info_note,tweak_version
+          exclude_inputs: bundle_id,display_name,enable_demc,enable_ryd,enable_ytabc,enable_youpip,enable_yq,info_note,tweak_version
 
       - name: Download and validate IPA
         run: |
@@ -113,8 +106,10 @@ jobs:
             exit 1
           fi
 
-      - name: Install cyan
-        run: pipx install --force https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
+      - name: Install cyan and ldid
+        run: |
+          pipx install --force https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
+          brew install ldid
 
       - name: Inject tweaks into IPA
         run: |
@@ -123,6 +118,20 @@ jobs:
             [ -f "$f" ] && tweaks="$tweaks $f"
           done
           cyan -i youtube.ipa -o YouTubePlus_${{ github.event.inputs.tweak_version }}.ipa -uwef $tweaks -n "${{ github.event.inputs.display_name }}" -b ${{ github.event.inputs.bundle_id }}
+
+      # FLEX.framework is embedded without a load command so FLEXHelperForYT
+      # can dlopen() it lazily on user action. A normal cyan injection would
+      # add a load command that runs FLEX's +load at dyld startup, crashing
+      # YouTube's ObjC initialisation.
+      - name: Embed FLEX Framework (no load command)
+        run: |
+          IPA="YouTubePlus_${{ github.event.inputs.tweak_version }}.ipa"
+          mkdir ipa_work
+          unzip -q "$IPA" -d ipa_work
+          cp -r FLEX.framework "ipa_work/Payload/YouTube.app/Frameworks/"
+          ldid -S "ipa_work/Payload/YouTube.app/Frameworks/FLEX.framework/FLEX"
+          cd ipa_work && zip -qry "../$IPA" Payload && cd ..
+          rm -rf ipa_work
 
       - name: Upload to GitHub Releases
         uses: softprops/action-gh-release@v3
