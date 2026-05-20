@@ -155,6 +155,10 @@ jobs:
         if: ${{ inputs.enable_demc }}
         run: git clone --quiet --depth=1 https://github.com/therealFoxster/DontEatMyContent.git
 
+      # YTVideoErrorAlert is always included — surfaces detailed player error info.
+      - name: Clone YTVideoErrorAlert
+        run: git clone --quiet --depth=1 https://github.com/PoomSmart/YTVideoErrorAlert.git
+
       # FLEXHelperForYT is always included — shake-to-activate FLEX for runtime inspection.
       - name: Clone FLEXHelperForYT
         run: git clone --quiet --depth=1 https://github.com/SweptWasTaken/FLEXHelperForYT.git
@@ -206,6 +210,11 @@ jobs:
         run: |
           cd DontEatMyContent && make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
           mv packages/*.deb ../demc.deb
+
+      - name: Build YTVideoErrorAlert
+        run: |
+          cd YTVideoErrorAlert && make clean package DEBUG=0 FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+          mv packages/*.deb ../ytvideoerroral.deb
 
       - name: Build FLEXHelperForYT
         run: |
