@@ -167,12 +167,12 @@ jobs:
       - name: Upload to GitHub Releases
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: debug-latest
-          name: Debug Build (YouTubePlus v${{ env.EFF_VERSION }})
+          tag_name: master
+          name: Master
           files: YouTubePlus_${{ env.EFF_VERSION }}.ipa
-          draft: true
+          draft: false
           make_latest: true
-          overwrite: true
+          overwrite_files: true
 
       - name: Output Release URL
         run: |
